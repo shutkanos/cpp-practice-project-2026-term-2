@@ -1,371 +1,379 @@
 #include "app.h"
 
-#include <iostream>
-#include <fstream>
-#include <sstream>
-#include <vector>
-#include <string>
 #include <algorithm>
 #include <ctime>
+#include <fstream>
+#include <iostream>
+#include <sstream>
+#include <string>
+#include <vector>
 
-using namespace std;
+const std::string SAVE_FILE = "notes.txt";
+const int PAGE_SIZE = 5;
 
-static const string SAVE_FILE = "notes.txt";
-static const int    PAGE_SIZE = 5;
-
-// ═══════════════════════════ helpers ════════════════════════════
-
-static string getCurrentDateTime() {
-    time_t now = time(nullptr);
-    struct tm* t = localtime(&now);
+std::string getCurrentDateTime() {
+    std::time_t now = std::time(nullptr);
+    struct tm* t = std::localtime(&now);
     char buf[32];
-    strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", t);
+    std::strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", t);
     return buf;
 }
 
-static string tagsToString(const vector<string>& tags) {
-    string s;
-    for (size_t i = 0; i < tags.size(); ++i) {
-        if (i) s += ' ';
+std::string tagsToString(const std::vector<std::string>& tags) {
+    std::string s;
+    for (std::size_t i = 0; i < tags.size(); ++i) {
+        if (i)
+            s += ' ';
         s += tags[i];
     }
     return s;
 }
 
-static string previewText(const string& text, size_t maxLen = 45) {
-    size_t nl = text.find('\n');
-    string first = (nl != string::npos) ? text.substr(0, nl) : text;
+std::string previewText(const std::string& text, std::size_t maxLen) {
+    std::size_t nl = text.find('\n');
+    std::string first = (nl != std::string::npos) ? text.substr(0, nl) : text;
     if (first.size() > maxLen)
         return first.substr(0, maxLen - 3) + "...";
     return first;
 }
 
-static void clearScr() {
-#ifdef _WIN32
-    system("cls");
-#else
-    system("clear");
-#endif
+void clearScr() {
+    std::system("clear");
 }
 
-// Reads a validated integer; loops until one is entered.
-static int readInt(const string& prompt = "") {
+int readInt(const std::string& prompt) {
     while (true) {
-        if (!prompt.empty()) cout << prompt;
-        string line;
-        if (!getline(cin, line)) return 0;
-        if (line.empty()) { cout << "Введите число: "; continue; }
-        try { return stoi(line); }
-        catch (...) { cout << "Ошибка: введите целое число. "; }
+        if (!prompt.empty())
+            std::cout << prompt;
+        std::string line;
+        if (!std::getline(std::cin, line))
+            return 0;
+        if (line.empty()) {
+            std::cout << "Введите число: ";
+            continue;
+        }
+        try {
+            return std::stoi(line);
+        } catch (...) {
+            std::cout << "Ошибка: введите целое число. ";
+        }
     }
 }
 
-// Reads a raw text line with optional prompt.
-static string readLine(const string& prompt = "") {
-    if (!prompt.empty()) cout << prompt;
-    string line;
-    getline(cin, line);
+std::string readLine(const std::string& prompt) {
+    if (!prompt.empty())
+        std::cout << prompt;
+    std::string line;
+    std::getline(std::cin, line);
     return line;
 }
 
-static void pause() {
-    cout << "\nНажмите Enter для продолжения...";
-    string dummy;
-    getline(cin, dummy);
+void pause() {
+    std::cout << "\nНажмите Enter для продолжения...";
+    std::string dummy;
+    std::getline(std::cin, dummy);
 }
 
-// ═══════════════════════════ save / load ════════════════════════
+void saveNotes(const std::vector<TextNote>& notes) {
+    std::ofstream f(SAVE_FILE);
+    if (!f) {
+        std::cerr << "Не удалось открыть файл для записи.\n";
+        return;
+    }
 
-static void saveNotes(const vector<TextNote>& notes) {
-    ofstream f(SAVE_FILE);
-    if (!f) { cerr << "Не удалось открыть файл для записи.\n"; return; }
-
-    for (const auto& n : notes) {
+    for (const TextNote& n : notes) {
         f << "===NOTE===\n";
         f << "DATE_CREATED|" << n.date_created << '\n';
         f << "DATE_CHANGED|" << n.date_changed << '\n';
-        f << "TAGS|"         << tagsToString(n.tags) << '\n';
+        f << "TAGS|" << tagsToString(n.tags) << '\n';
 
-        // Split text into lines to count them before writing.
-        istringstream ss(n.text);
-        vector<string> lines;
-        string l;
-        while (getline(ss, l)) lines.push_back(l);
-        if (lines.empty()) lines.emplace_back("");
+        std::istringstream ss(n.text);
+        std::vector<std::string> lines;
+        std::string l;
+        while (std::getline(ss, l))
+            lines.push_back(l);
+        if (lines.empty())
+            lines.emplace_back("");
 
         f << "TEXT_LINES|" << lines.size() << '\n';
-        for (const auto& tl : lines) f << tl << '\n';
+        for (const std::string& tl : lines)
+            f << tl << '\n';
         f << "===END===\n";
     }
 }
 
-static void loadNotes(vector<TextNote>& notes) {
+void loadNotes(std::vector<TextNote>& notes) {
     notes.clear();
-    ifstream f(SAVE_FILE);
-    if (!f) return;
+    std::ifstream f(SAVE_FILE);
+    if (!f)
+        return;
 
-    // Lambda: returns everything after the first '|'.
-    auto field = [](const string& s) -> string {
+    auto field = [](const std::string& s) -> std::string {
         auto p = s.find('|');
-        return (p == string::npos) ? s : s.substr(p + 1);
+        return (p == std::string::npos) ? s : s.substr(p + 1);
     };
 
-    string line;
-    while (getline(f, line)) {
-        if (line != "===NOTE===") continue;
+    std::string line;
+    while (std::getline(f, line)) {
+        if (line != "===NOTE===")
+            continue;
 
         TextNote n;
-        getline(f, line); n.date_created = field(line);
-        getline(f, line); n.date_changed = field(line);
+        std::getline(f, line);
+        n.date_created = field(line);
+        std::getline(f, line);
+        n.date_changed = field(line);
 
-        getline(f, line);
+        std::getline(f, line);
         {
-            istringstream ss(field(line));
-            string t;
-            while (ss >> t) n.tags.push_back(t);
+            std::istringstream ss(field(line));
+            std::string t;
+            while (ss >> t)
+                n.tags.push_back(t);
         }
 
-        getline(f, line);
+        std::getline(f, line);
         int cnt = 0;
-        try { cnt = stoi(field(line)); } catch (...) {}
+        try {
+            cnt = std::stoi(field(line));
+        } catch (...) {}
 
-        string text;
+        std::string text;
         for (int i = 0; i < cnt; ++i) {
-            getline(f, line);
-            if (i) text += '\n';
+            std::getline(f, line);
+            if (i)
+                text += '\n';
             text += line;
         }
         n.text = text;
 
-        getline(f, line); // ===END===
+        std::getline(f, line);  // ===END===
         notes.push_back(n);
     }
 }
 
-// ═══════════════════════════ single note view ═══════════════════
-
-// Returns true if the note was deleted (caller must discard stale indices).
-static bool viewNote(vector<TextNote>& notes, int idx) {
+bool viewNote(std::vector<TextNote>& notes, int idx) {
     while (true) {
         clearScr();
 
-        // Re-read through reference because the note may have changed.
         const TextNote& n = notes[idx];
-
-        cout << "══════════ Заметка #" << (idx + 1) << " ══════════\n";
-        cout << "Теги:     "
-             << (n.tags.empty() ? "(нет)" : tagsToString(n.tags)) << '\n';
-        cout << "Создана:  " << n.date_created << '\n';
-        cout << "Изменена: " << n.date_changed << '\n';
-        cout << "──────────────────────────────────────\n";
-        cout << n.text << '\n';
-        cout << "──────────────────────────────────────\n\n";
-        cout << "1. Удалить заметку\n";
-        cout << "2. Изменить текст\n";
-        cout << "3. Добавить тег\n";
-        cout << "4. Удалить тег\n";
-        cout << "0. Назад\n";
+        std::cout << "══════════ Заметка #" << (idx + 1) << " ══════════\n";
+        std::cout << "Теги:     " << (n.tags.empty() ? "(нет)" : tagsToString(n.tags)) << '\n';
+        std::cout << "Создана:  " << n.date_created << '\n';
+        std::cout << "Изменена: " << n.date_changed << '\n';
+        std::cout << "──────────────────────────────────────\n";
+        std::cout << n.text << '\n';
+        std::cout << "──────────────────────────────────────\n\n";
+        std::cout << "1. Удалить заметку\n";
+        std::cout << "2. Изменить текст\n";
+        std::cout << "3. Добавить тег\n";
+        std::cout << "4. Удалить тег\n";
+        std::cout << "0. Назад\n";
 
         int ch = readInt("Выбор: ");
 
         switch (ch) {
+            case 0:
+                return false;
 
-        // ── Назад ──
-        case 0:
-            return false;
-
-        // ── Удалить ──
-        case 1: {
-            int c = readInt("Подтвердить удаление? (1 - да, 0 - нет): ");
-            if (c == 1) {
-                notes.erase(notes.begin() + idx);
-                saveNotes(notes);
-                cout << "\nЗаметка удалена.\n";
-                pause();
-                return true;
+            case 1: {
+                int c = readInt("Подтвердить удаление? (1 - да, 0 - нет): ");
+                if (c == 1) {
+                    notes.erase(notes.begin() + idx);
+                    saveNotes(notes);
+                    std::cout << "\nЗаметка удалена.\n";
+                    pause();
+                    return true;
+                }
+                break;
             }
-            break;
-        }
 
-        // ── Изменить текст ──
-        case 2: {
-            int nL = readInt("Количество строк нового текста (0 - отмена): ");
-            if (nL == 0) break;
-            string text;
-            cout << "Введите текст:\n";
-            for (int i = 0; i < nL; ++i) {
-                string l = readLine(to_string(i + 1) + "> ");
-                if (i) text += '\n';
-                text += l;
-            }
-            notes[idx].text         = text;
-            notes[idx].date_changed = getCurrentDateTime();
-            saveNotes(notes);
-            cout << "\nТекст обновлён.\n";
-            pause();
-            break;
-        }
-
-        // ── Добавить тег ──
-        case 3: {
-            string tag = readLine("Введите тег (0 - отмена): ");
-            if (tag == "0" || tag.empty()) break;
-            notes[idx].tags.push_back(tag);
-            notes[idx].date_changed = getCurrentDateTime();
-            saveNotes(notes);
-            cout << "\nТег добавлен.\n";
-            pause();
-            break;
-        }
-
-        // ── Удалить тег ──
-        case 4: {
-            if (notes[idx].tags.empty()) {
-                cout << "\nТегов нет.\n"; pause(); break;
-            }
-            cout << "\nТеги:\n";
-            for (size_t i = 0; i < notes[idx].tags.size(); ++i)
-                cout << "  " << (i + 1) << ". " << notes[idx].tags[i] << '\n';
-            int tn = readInt("Номер тега для удаления (0 - отмена): ");
-            if (tn == 0) break;
-            if (tn >= 1 && tn <= (int)notes[idx].tags.size()) {
-                notes[idx].tags.erase(notes[idx].tags.begin() + tn - 1);
+            case 2: {
+                int nL = readInt("Количество строк нового текста (0 - отмена): ");
+                if (nL == 0)
+                    break;
+                std::string text;
+                std::cout << "Введите текст:\n";
+                for (int i = 0; i < nL; ++i) {
+                    std::string l = readLine(std::to_string(i + 1) + "> ");
+                    if (i)
+                        text += '\n';
+                    text += l;
+                }
+                notes[idx].text = text;
                 notes[idx].date_changed = getCurrentDateTime();
                 saveNotes(notes);
-                cout << "\nТег удалён.\n";
+                std::cout << "\nТекст обновлён.\n";
                 pause();
-            } else {
-                cout << "\nНеверный номер.\n"; pause();
+                break;
             }
-            break;
-        }
 
-        default:
-            cout << "\nНеверный выбор.\n"; pause();
+            case 3: {
+                std::string tag = readLine("Введите тег (0 - отмена): ");
+                if (tag == "0" || tag.empty())
+                    break;
+                notes[idx].tags.push_back(tag);
+                notes[idx].date_changed = getCurrentDateTime();
+                saveNotes(notes);
+                std::cout << "\nТег добавлен.\n";
+                pause();
+                break;
+            }
+
+            case 4: {
+                if (notes[idx].tags.empty()) {
+                    std::cout << "\nТегов нет.\n";
+                    pause();
+                    break;
+                }
+                std::cout << "\nТеги:\n";
+                for (std::size_t i = 0; i < notes[idx].tags.size(); ++i)
+                    std::cout << "  " << (i + 1) << ". " << notes[idx].tags[i] << '\n';
+                int tn = readInt("Номер тега для удаления (0 - отмена): ");
+                if (tn == 0)
+                    break;
+                if (tn >= 1 && tn <= (int)notes[idx].tags.size()) {
+                    notes[idx].tags.erase(notes[idx].tags.begin() + tn - 1);
+                    notes[idx].date_changed = getCurrentDateTime();
+                    saveNotes(notes);
+                    std::cout << "\nТег удалён.\n";
+                    pause();
+                } else {
+                    std::cout << "\nНеверный номер.\n";
+                    pause();
+                }
+                break;
+            }
+
+            default:
+                std::cout << "\nНеверный выбор.\n";
+                pause();
         }
     }
 }
 
-// ═══════════════════════════ paginated list ═════════════════════
-
-// indices — позиции заметок в векторе notes, которые нужно показать.
-static void showNotesList(vector<TextNote>& notes,
-                          const vector<int>& indices)
-{
+void showNotesList(std::vector<TextNote>& notes, const std::vector<int>& indices) {
     if (indices.empty()) {
-        cout << "\nСписок заметок пуст.\n";
+        std::cout << "\nСписок заметок пуст.\n";
         pause();
         return;
     }
 
-    int total      = (int)indices.size();
+    int total = (int)indices.size();
     int totalPages = (total + PAGE_SIZE - 1) / PAGE_SIZE;
-    int page       = 0;
+    int page = 0;
 
     while (true) {
         clearScr();
-        cout << "══════════ Заметки (стр. "
-             << (page + 1) << " / " << totalPages
-             << ") ══════════\n\n";
+        std::cout << "══════════ Заметки (стр. " << (page + 1) << " / " << totalPages << ") ══════════\n\n";
 
         int start = page * PAGE_SIZE;
-        int end   = min(start + PAGE_SIZE, total);
+        int end = std::min(start + PAGE_SIZE, total);
 
         for (int i = start; i < end; ++i) {
-            const TextNote& n   = notes[indices[i]];
-            string tags_str = n.tags.empty()
-                ? "(нет тегов)"
-                : "[" + tagsToString(n.tags) + "]";
-            cout << "  " << (i + 1) << ". "
-                 << tags_str << "  "
-                 << previewText(n.text) << '\n';
+            const TextNote& n = notes[indices[i]];
+            std::string tags_str = n.tags.empty() ? "(нет тегов)" : "[" + tagsToString(n.tags) + "]";
+            std::cout << "  " << (i + 1) << ". " << tags_str << "  " << previewText(n.text) << '\n';
         }
 
-        cout << "\n1. Вперёд\n2. Назад\n3. Выбрать заметку\n0. Выход\n";
+        std::cout << "\n1. Вперёд\n2. Назад\n3. Выбрать заметку\n0. Выход\n";
 
         int ch = readInt("Выбор: ");
 
         switch (ch) {
-        case 0:
-            return;
+            case 0:
+                return;
 
-        case 1:
-            if (page < totalPages - 1) ++page;
-            else { cout << "\nЭто последняя страница.\n"; pause(); }
-            break;
+            case 1:
+                if (page < totalPages - 1)
+                    ++page;
+                else {
+                    std::cout << "\nЭто последняя страница.\n";
+                    pause();
+                }
+                break;
 
-        case 2:
-            if (page > 0) --page;
-            else { cout << "\nЭто первая страница.\n"; pause(); }
-            break;
+            case 2:
+                if (page > 0)
+                    --page;
+                else {
+                    std::cout << "\nЭто первая страница.\n";
+                    pause();
+                }
+                break;
 
-        case 3: {
-            // Номер в общем списке (1..total), не только с текущей страницы.
-            int num = readInt(
-                "Номер заметки из списка 1–" + to_string(total)
-                + " (0 - отмена): ");
-            if (num == 0) break;
-            if (num >= 1 && num <= total) {
-                bool deleted = viewNote(notes, indices[num - 1]);
-                if (deleted) return; // indices устарели — выходим
-            } else {
-                cout << "\nНеверный номер. Доступны 1–" << total << ".\n";
-                pause();
+            case 3: {
+                int num = readInt("Номер заметки из списка 1–" + std::to_string(total) + " (0 - отмена): ");
+                if (num == 0)
+                    break;
+                if (num >= 1 && num <= total) {
+                    bool deleted = viewNote(notes, indices[num - 1]);
+                    if (deleted)
+                        return;  // индексы устарели — выходим
+                } else {
+                    std::cout << "\nНеверный номер. Доступны 1–" << total << ".\n";
+                    pause();
+                }
+                break;
             }
-            break;
-        }
 
-        default:
-            cout << "\nНеверный выбор.\n"; pause();
+            default:
+                std::cout << "\nНеверный выбор.\n";
+                pause();
         }
     }
 }
 
-// ═══════════════════════════ main operations ════════════════════
-
-static void viewAllNotes(vector<TextNote>& notes) {
+void viewAllNotes(std::vector<TextNote>& notes) {
     if (notes.empty()) {
         clearScr();
-        cout << "\nЗаметок пока нет.\n";
+        std::cout << "\nЗаметок пока нет.\n";
         pause();
         return;
     }
-    vector<int> idx;
+    std::vector<int> idx;
     idx.reserve(notes.size());
-    for (int i = 0; i < (int)notes.size(); ++i) idx.push_back(i);
+    for (int i = 0; i < (int)notes.size(); ++i)
+        idx.push_back(i);
     showNotesList(notes, idx);
 }
 
-static void searchNotes(vector<TextNote>& notes) {
+void searchNotes(std::vector<TextNote>& notes) {
     clearScr();
-    cout << "══════════ Поиск по тегам ══════════\n\n";
+    std::cout << "══════════ Поиск по тегам ══════════\n\n";
 
     int n = readInt("Количество тегов для поиска (0 - отмена): ");
-    if (n == 0) return;
+    if (n == 0)
+        return;
 
-    vector<string> query;
-    cout << "Введите теги:\n";
+    std::vector<std::string> query;
+    std::cout << "Введите теги:\n";
     for (int i = 0; i < n; ++i) {
-        string t = readLine(to_string(i + 1) + "> ");
-        if (!t.empty()) query.push_back(t);
+        std::string t = readLine(std::to_string(i + 1) + "> ");
+        if (!t.empty())
+            query.push_back(t);
     }
-    if (query.empty()) return;
+    if (query.empty())
+        return;
 
-    // Заметка попадает в результат, если хотя бы один её тег совпал
-    // хотя бы с одним тегом запроса.
-    vector<int> found;
+    std::vector<int> found;
     for (int i = 0; i < (int)notes.size(); ++i) {
         bool hit = false;
-        for (const auto& qt : query) {
-            for (const auto& nt : notes[i].tags)
-                if (nt == qt) { hit = true; break; }
-            if (hit) break;
+        for (const std::string& qt : query) {
+            for (const std::string& nt : notes[i].tags)
+                if (nt == qt) {
+                    hit = true;
+                    break;
+                }
+            if (hit)
+                break;
         }
-        if (hit) found.push_back(i);
+        if (hit)
+            found.push_back(i);
     }
 
     if (found.empty()) {
-        cout << "\nЗаметок с такими тегами не найдено.\n";
+        std::cout << "\nЗаметок с такими тегами не найдено.\n";
         pause();
         return;
     }
@@ -373,71 +381,79 @@ static void searchNotes(vector<TextNote>& notes) {
     showNotesList(notes, found);
 }
 
-static void newNote(vector<TextNote>& notes) {
+void newNote(std::vector<TextNote>& notes) {
     clearScr();
-    cout << "══════════ Новая заметка ══════════\n\n";
+    std::cout << "══════════ Новая заметка ══════════\n\n";
 
     int nLines = readInt("Количество строк текста (0 - отмена): ");
-    if (nLines == 0) return;
+    if (nLines == 0)
+        return;
 
-    string text;
-    cout << "Введите текст:\n";
+    std::string text;
+    std::cout << "Введите текст:\n";
     for (int i = 0; i < nLines; ++i) {
-        string l = readLine(to_string(i + 1) + "> ");
-        if (i) text += '\n';
+        std::string l = readLine(std::to_string(i + 1) + "> ");
+        if (i)
+            text += '\n';
         text += l;
     }
 
     int nTags = readInt("\nКоличество тегов (0 - без тегов): ");
-    vector<string> tags;
+    std::vector<std::string> tags;
     if (nTags > 0) {
-        cout << "Введите теги:\n";
+        std::cout << "Введите теги:\n";
         for (int i = 0; i < nTags; ++i) {
-            string t = readLine(to_string(i + 1) + "> ");
-            if (!t.empty()) tags.push_back(t);
+            std::string t = readLine(std::to_string(i + 1) + "> ");
+            if (!t.empty())
+                tags.push_back(t);
         }
     }
 
     TextNote note;
-    note.text         = text;
+    note.text = text;
     note.date_created = getCurrentDateTime();
     note.date_changed = getCurrentDateTime();
-    note.tags         = tags;
+    note.tags = tags;
 
     notes.push_back(note);
     saveNotes(notes);
 
-    cout << "\nЗаметка #" << notes.size() << " создана!\n";
+    std::cout << "\nЗаметка #" << notes.size() << " создана!\n";
     pause();
 }
 
-// ═══════════════════════════ entry point ════════════════════════
-
 void RunApp() {
-    vector<TextNote> texts;
+    std::vector<TextNote> texts;
     loadNotes(texts);
 
     while (true) {
         clearScr();
-        cout << "╔══════════════════════════════════╗\n";
-        cout << "║        Записная книжка           ║\n";
-        cout << "╚══════════════════════════════════╝\n\n";
-        cout << "  1. Просмотреть все заметки\n";
-        cout << "  2. Поиск заметки по тегам\n";
-        cout << "  3. Новая заметка\n";
-        cout << "  0. Выход\n\n";
+        std::cout << "╔══════════════════════════════════╗\n";
+        std::cout << "║        Записная книжка           ║\n";
+        std::cout << "╚══════════════════════════════════╝\n\n";
+        std::cout << "  1. Просмотреть все заметки\n";
+        std::cout << "  2. Поиск заметки по тегам\n";
+        std::cout << "  3. Новая заметка\n";
+        std::cout << "  0. Выход\n\n";
 
         int ch = readInt("Выбор: ");
 
         switch (ch) {
-        case 0:
-            cout << "\nДо свидания!\n";
-            return;
-        case 1: viewAllNotes(texts); break;
-        case 2: searchNotes(texts);  break;
-        case 3: newNote(texts);      break;
-        default:
-            cout << "\nНеверный выбор.\n"; pause();
+            case 0:
+                std::cout << "\nДо свидания!\n";
+                return;
+            case 1:
+                viewAllNotes(texts);
+                break;
+            case 2:
+                searchNotes(texts);
+                break;
+            case 3:
+                newNote(texts);
+                break;
+            default:
+                std::cout << "\nНеверный выбор.\n";
+                pause();
         }
     }
 }
