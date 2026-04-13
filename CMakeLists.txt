@@ -9,17 +9,14 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp
 )
 
-set(HEADERS)
-
 add_executable(${PROJECT_NAME} ${SOURCES})
+
+find_package(nlohmann_json REQUIRED)
+target_link_libraries(${PROJECT_NAME} PRIVATE nlohmann_json::nlohmann_json)
+
+target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
 add_custom_target(
     clang-format
-    COMMAND clang-format
-    --dry-run
-    -Werror
-    ${SOURCES}
-    ${HEADERS}
+    COMMAND clang-format --dry-run -Werror ${SOURCES}
 )
-
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}) 

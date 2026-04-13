@@ -1,4 +1,5 @@
 #pragma once
+#include <nlohmann/json.hpp>
 #include <string>
 #include <vector>
 
@@ -15,7 +16,7 @@ std::string previewText(const std::string& text, std::size_t maxLen = 45);
 void clearScr();
 int readInt(const std::string& prompt = "");
 std::string readLine(const std::string& prompt = "");
-void pause();
+void waitEnter();
 
 void saveNotes(const std::vector<TextNote>& notes);
 void loadNotes(std::vector<TextNote>& notes);

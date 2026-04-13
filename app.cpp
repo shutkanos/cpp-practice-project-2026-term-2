@@ -1,4 +1,5 @@
 #include "app.h"
+#include <nlohmann/json.hpp>
 
 #include <algorithm>
 #include <ctime>
@@ -8,8 +9,10 @@
 #include <string>
 #include <vector>
 
-const std::string SAVE_FILE = "notes.txt";
+const std::string SAVE_FILE = "notes.json";
 const int PAGE_SIZE = 5;
+
+using json = nlohmann::json;
 
 std::string getCurrentDateTime() {
     std::time_t now = std::time(nullptr);
@@ -68,38 +71,29 @@ std::string readLine(const std::string& prompt) {
     return line;
 }
 
-void pause() {
+void waitEnter() {
     std::cout << "\nНажмите Enter для продолжения...";
-    std::string dummy;
-    std::getline(std::cin, dummy);
+    std::string temp;
+    std::getline(std::cin, temp);
 }
 
 void saveNotes(const std::vector<TextNote>& notes) {
+    json arr = json::array();
+    for (const TextNote& n : notes) {
+        arr.push_back({
+            {"text",         n.text},
+            {"date_created", n.date_created},
+            {"date_changed", n.date_changed},
+            {"tags",         n.tags}
+        });
+    }
+
     std::ofstream f(SAVE_FILE);
     if (!f) {
         std::cerr << "Не удалось открыть файл для записи.\n";
         return;
     }
-
-    for (const TextNote& n : notes) {
-        f << "===NOTE===\n";
-        f << "DATE_CREATED|" << n.date_created << '\n';
-        f << "DATE_CHANGED|" << n.date_changed << '\n';
-        f << "TAGS|" << tagsToString(n.tags) << '\n';
-
-        std::istringstream ss(n.text);
-        std::vector<std::string> lines;
-        std::string l;
-        while (std::getline(ss, l))
-            lines.push_back(l);
-        if (lines.empty())
-            lines.emplace_back("");
-
-        f << "TEXT_LINES|" << lines.size() << '\n';
-        for (const std::string& tl : lines)
-            f << tl << '\n';
-        f << "===END===\n";
-    }
+    f << arr.dump(2);
 }
 
 void loadNotes(std::vector<TextNote>& notes) {
@@ -108,47 +102,21 @@ void loadNotes(std::vector<TextNote>& notes) {
     if (!f)
         return;
 
-    auto field = [](const std::string& s) -> std::string {
-        auto p = s.find('|');
-        return (p == std::string::npos) ? s : s.substr(p + 1);
-    };
+    json arr;
+    try {
+        f >> arr;
+    } catch (const json::exception& e) {
+        std::cerr << "Ошибка чтения JSON: " << e.what() << '\n';
+        return;
+    }
 
-    std::string line;
-    while (std::getline(f, line)) {
-        if (line != "===NOTE===")
-            continue;
-
+    for (const auto& obj : arr) {
         TextNote n;
-        std::getline(f, line);
-        n.date_created = field(line);
-        std::getline(f, line);
-        n.date_changed = field(line);
-
-        std::getline(f, line);
-        {
-            std::istringstream ss(field(line));
-            std::string t;
-            while (ss >> t)
-                n.tags.push_back(t);
-        }
-
-        std::getline(f, line);
-        int cnt = 0;
-        try {
-            cnt = std::stoi(field(line));
-        } catch (...) {}
-
-        std::string text;
-        for (int i = 0; i < cnt; ++i) {
-            std::getline(f, line);
-            if (i)
-                text += '\n';
-            text += line;
-        }
-        n.text = text;
-
-        std::getline(f, line);  // ===END===
-        notes.push_back(n);
+        n.text         = obj.value("text",         "");
+        n.date_created = obj.value("date_created",  "");
+        n.date_changed = obj.value("date_changed",  "");
+        n.tags         = obj.value("tags",           std::vector<std::string>{});
+        notes.push_back(std::move(n));
     }
 }
 
@@ -182,7 +150,7 @@ bool viewNote(std::vector<TextNote>& notes, int idx) {
                     notes.erase(notes.begin() + idx);
                     saveNotes(notes);
                     std::cout << "\nЗаметка удалена.\n";
-                    pause();
+                    waitEnter();
                     return true;
                 }
                 break;
@@ -204,7 +172,7 @@ bool viewNote(std::vector<TextNote>& notes, int idx) {
                 notes[idx].date_changed = getCurrentDateTime();
                 saveNotes(notes);
                 std::cout << "\nТекст обновлён.\n";
-                pause();
+                waitEnter();
                 break;
             }
 
@@ -216,14 +184,14 @@ bool viewNote(std::vector<TextNote>& notes, int idx) {
                 notes[idx].date_changed = getCurrentDateTime();
                 saveNotes(notes);
                 std::cout << "\nТег добавлен.\n";
-                pause();
+                waitEnter();
                 break;
             }
 
             case 4: {
                 if (notes[idx].tags.empty()) {
                     std::cout << "\nТегов нет.\n";
-                    pause();
+                    waitEnter();
                     break;
                 }
                 std::cout << "\nТеги:\n";
@@ -237,17 +205,17 @@ bool viewNote(std::vector<TextNote>& notes, int idx) {
                     notes[idx].date_changed = getCurrentDateTime();
                     saveNotes(notes);
                     std::cout << "\nТег удалён.\n";
-                    pause();
+                    waitEnter();
                 } else {
                     std::cout << "\nНеверный номер.\n";
-                    pause();
+                    waitEnter();
                 }
                 break;
             }
 
             default:
                 std::cout << "\nНеверный выбор.\n";
-                pause();
+                waitEnter();
         }
     }
 }
@@ -255,7 +223,7 @@ bool viewNote(std::vector<TextNote>& notes, int idx) {
 void showNotesList(std::vector<TextNote>& notes, const std::vector<int>& indices) {
     if (indices.empty()) {
         std::cout << "\nСписок заметок пуст.\n";
-        pause();
+        waitEnter();
         return;
     }
 
@@ -289,7 +257,7 @@ void showNotesList(std::vector<TextNote>& notes, const std::vector<int>& indices
                     ++page;
                 else {
                     std::cout << "\nЭто последняя страница.\n";
-                    pause();
+                    waitEnter();
                 }
                 break;
 
@@ -298,7 +266,7 @@ void showNotesList(std::vector<TextNote>& notes, const std::vector<int>& indices
                     --page;
                 else {
                     std::cout << "\nЭто первая страница.\n";
-                    pause();
+                    waitEnter();
                 }
                 break;
 
@@ -312,14 +280,14 @@ void showNotesList(std::vector<TextNote>& notes, const std::vector<int>& indices
                         return;  // индексы устарели — выходим
                 } else {
                     std::cout << "\nНеверный номер. Доступны 1–" << total << ".\n";
-                    pause();
+                    waitEnter();
                 }
                 break;
             }
 
             default:
                 std::cout << "\nНеверный выбор.\n";
-                pause();
+                waitEnter();
         }
     }
 }
@@ -328,7 +296,7 @@ void viewAllNotes(std::vector<TextNote>& notes) {
     if (notes.empty()) {
         clearScr();
         std::cout << "\nЗаметок пока нет.\n";
-        pause();
+        waitEnter();
         return;
     }
     std::vector<int> idx;
@@ -374,7 +342,7 @@ void searchNotes(std::vector<TextNote>& notes) {
 
     if (found.empty()) {
         std::cout << "\nЗаметок с такими тегами не найдено.\n";
-        pause();
+        waitEnter();
         return;
     }
 
@@ -419,7 +387,7 @@ void newNote(std::vector<TextNote>& notes) {
     saveNotes(notes);
 
     std::cout << "\nЗаметка #" << notes.size() << " создана!\n";
-    pause();
+    waitEnter();
 }
 
 void RunApp() {
@@ -453,7 +421,7 @@ void RunApp() {
                 break;
             default:
                 std::cout << "\nНеверный выбор.\n";
-                pause();
+                waitEnter();
         }
     }
 }
