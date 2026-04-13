@@ -81,10 +81,10 @@ void saveNotes(const std::vector<TextNote>& notes) {
     json arr = json::array();
     for (const TextNote& n : notes) {
         arr.push_back({
-            {"text",         n.text},
+            {"text",         n.text        },
             {"date_created", n.date_created},
             {"date_changed", n.date_changed},
-            {"tags",         n.tags}
+            {"tags",         n.tags        }
         });
     }
 
@@ -112,10 +112,10 @@ void loadNotes(std::vector<TextNote>& notes) {
 
     for (const auto& obj : arr) {
         TextNote n;
-        n.text         = obj.value("text",         "");
-        n.date_created = obj.value("date_created",  "");
-        n.date_changed = obj.value("date_changed",  "");
-        n.tags         = obj.value("tags",           std::vector<std::string>{});
+        n.text = obj.value("text", "");
+        n.date_created = obj.value("date_created", "");
+        n.date_changed = obj.value("date_changed", "");
+        n.tags = obj.value("tags", std::vector<std::string>{});
         notes.push_back(std::move(n));
     }
 }
@@ -277,7 +277,7 @@ void showNotesList(std::vector<TextNote>& notes, const std::vector<int>& indices
                 if (num >= 1 && num <= total) {
                     bool deleted = viewNote(notes, indices[num - 1]);
                     if (deleted)
-                        return;  // индексы устарели — выходим
+                        return;
                 } else {
                     std::cout << "\nНеверный номер. Доступны 1–" << total << ".\n";
                     waitEnter();
