@@ -49,8 +49,8 @@ static void leftPanel(float w, float h) {
     ImGui::BeginChild("##list");
     auto idxs = filterNotes(st.notes, st.search);
 
-    if (idxs.empty())
-        ImGui::TextDisabled("Нет заметок");
+    //if (idxs.empty())
+    //    ImGui::TextDisabled("Нет заметок");
 
     for (int idx : idxs) {
         const auto& n = st.notes[idx];
@@ -108,7 +108,7 @@ static void rightPanel(float w, float h) {
     for (int i = 0; i < (int)n.tags.size(); ++i) {
         ImGui::SameLine();
         ImGui::PushID(i);
-        std::string btn = "[x] " + n.tags[i];
+        std::string btn = n.tags[i];
         if (ImGui::SmallButton(btn.c_str())) {
             removeTag(st.notes, st.sel, i);
             ImGui::PopID();
@@ -116,7 +116,7 @@ static void rightPanel(float w, float h) {
         }
         ImGui::PopID();
     }
-    if (n.tags.empty()) { ImGui::SameLine(); ImGui::TextDisabled("(нет)"); }
+    //if (n.tags.empty()) { ImGui::SameLine(); ImGui::TextDisabled("(нет)"); }
 
     ImGui::SetNextItemWidth(140);
     ImGui::InputText("##ntag", st.new_tag, sizeof(st.new_tag));
