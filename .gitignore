@@ -45,3 +45,6 @@
 
 *.txt
 *.json
+
+vendor
+build-win
