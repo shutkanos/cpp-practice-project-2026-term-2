@@ -19,7 +19,6 @@ struct AppState {
     char new_tag [kTagBuf]  = {};
 } st;
 
-// Синхронизирует edit_buf с выбранной заметкой
 static void syncBuf() {
     if (st.sel >= 0 && st.sel < (int)st.notes.size())
         strncpy(st.edit_buf, st.notes[st.sel].text.c_str(), kTextBuf - 1);
@@ -27,7 +26,6 @@ static void syncBuf() {
         memset(st.edit_buf, 0, sizeof(st.edit_buf));
 }
 
-// ── Левая панель: список + поиск ─────────────────────────────────────────────
 static void leftPanel(float w, float h) {
     ImGui::BeginChild("##left", ImVec2(w, h), true);
 
@@ -36,11 +34,10 @@ static void leftPanel(float w, float h) {
     ImGui::SetNextItemWidth(w - 90);
     ImGui::InputText("##srch", st.search, sizeof(st.search));
     ImGui::SameLine();
-    //if (ImGui::SmallButton("X")) memset(st.search, 0, sizeof(st.search));
 
     ImGui::Spacing();
     if (ImGui::Button("+ Новая заметка", ImVec2(-1, 0))) {
-        int idx = addNote(st.notes);   // создаём пустую заметку в бекенде
+        int idx = addNote(st.notes);
         st.sel = idx;
         syncBuf();
     }
@@ -48,9 +45,6 @@ static void leftPanel(float w, float h) {
 
     ImGui::BeginChild("##list");
     auto idxs = filterNotes(st.notes, st.search);
-
-    //if (idxs.empty())
-    //    ImGui::TextDisabled("Нет заметок");
 
     for (int idx : idxs) {
         const auto& n = st.notes[idx];
@@ -72,21 +66,16 @@ static void leftPanel(float w, float h) {
     ImGui::EndChild();
 }
 
-// ── Правая панель: редактор ───────────────────────────────────────────────────
 static void rightPanel(float w, float h) {
     ImGui::BeginChild("##right", ImVec2(w, h), true);
 
     if (st.sel < 0 || st.sel >= (int)st.notes.size()) {
-        //ImVec2 avail = ImGui::GetContentRegionAvail();
-        //ImGui::SetCursorPos(ImVec2(avail.x / 2 - 110, avail.y / 2 - 8));
-        //ImGui::TextDisabled("Выберите заметку из списка");
         ImGui::EndChild();
         return;
     }
 
     TextNote& n = st.notes[st.sel];
 
-    // Заголовок
     ImGui::Text("Заметка #%d", st.sel + 1);
     ImGui::SameLine(w - 110);
     if (ImGui::SmallButton("Удалить")) {
@@ -98,12 +87,10 @@ static void rightPanel(float w, float h) {
     }
     ImGui::Separator();
 
-    // Даты
     ImGui::TextDisabled("Создана:  %s", n.date_created.c_str());
     ImGui::TextDisabled("Изменена: %s", n.date_changed.c_str());
     ImGui::Spacing();
 
-    // Теги
     ImGui::Text("Теги:");
     for (int i = 0; i < (int)n.tags.size(); ++i) {
         ImGui::SameLine();
@@ -112,11 +99,10 @@ static void rightPanel(float w, float h) {
         if (ImGui::SmallButton(btn.c_str())) {
             removeTag(st.notes, st.sel, i);
             ImGui::PopID();
-            break;    // итератор сломан после удаления, выходим
+            break;
         }
         ImGui::PopID();
     }
-    //if (n.tags.empty()) { ImGui::SameLine(); ImGui::TextDisabled("(нет)"); }
 
     ImGui::SetNextItemWidth(140);
     ImGui::InputText("##ntag", st.new_tag, sizeof(st.new_tag));
@@ -128,19 +114,16 @@ static void rightPanel(float w, float h) {
 
     ImGui::Separator();
 
-    // Кнопка сохранить
     if (ImGui::Button("Сохранить")) {
         updateText(st.notes, st.sel, st.edit_buf);
     }
 
-    // Редактор текста (всегда активен)
     float text_h = ImGui::GetContentRegionAvail().y - 5.0f;
     ImGui::InputTextMultiline("##ed", st.edit_buf, kTextBuf, ImVec2(-1, text_h));
 
     ImGui::EndChild();
 }
 
-// ── Главный цикл ──────────────────────────────────────────────────────────────
 void RunApp() {
     loadNotes(st.notes);
 

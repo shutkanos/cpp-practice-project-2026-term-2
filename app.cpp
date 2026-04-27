@@ -8,7 +8,6 @@
 using json = nlohmann::json;
 static const std::string SAVE_FILE = "notes.json";
 
-// ── утилиты ──────────────────────────────────────────────────────────────────
 std::string getCurrentDateTime() {
     std::time_t now = std::time(nullptr);
     struct tm* t = std::localtime(&now);
@@ -34,7 +33,6 @@ std::string previewText(const std::string& text, std::size_t maxLen) {
     return first;
 }
 
-// ── персистентность ───────────────────────────────────────────────────────────
 void saveNotes(const std::vector<TextNote>& notes) {
     json arr = json::array();
     for (const TextNote& n : notes)
@@ -69,7 +67,6 @@ void loadNotes(std::vector<TextNote>& notes) {
     }
 }
 
-// ── бекенд-операции ───────────────────────────────────────────────────────────
 int addNote(std::vector<TextNote>& notes) {
     TextNote n;
     n.date_created = n.date_changed = getCurrentDateTime();
